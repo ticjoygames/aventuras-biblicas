@@ -21,8 +21,17 @@
 <script src="Build/Web.loader.js"></script>
 <script>
   var movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // Texturas no formato que a placa de video do aparelho entende: DXT em computador, ASTC em celular.
+  var dados = 'Build/Web.dxt.data.unityweb';
+  try {
+    var teste = document.createElement('canvas');
+    var gl = teste.getContext('webgl2') || teste.getContext('webgl');
+    var dxt = gl && (gl.getExtension('WEBGL_compressed_texture_s3tc') || gl.getExtension('WEBKIT_WEBGL_compressed_texture_s3tc'));
+    var astc = gl && gl.getExtension('WEBGL_compressed_texture_astc');
+    if (astc && !dxt) dados = 'Build/Web.astc.data.unityweb';
+  } catch (e) { }
   createUnityInstance(document.querySelector('#unity-canvas'), {
-    dataUrl: 'Build/Web.data.unityweb',
+    dataUrl: dados,
     frameworkUrl: 'Build/Web.framework.js.unityweb',
     codeUrl: 'Build/Web.wasm.unityweb',
     streamingAssetsUrl: 'StreamingAssets',
