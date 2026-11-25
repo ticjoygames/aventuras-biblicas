@@ -2,11 +2,21 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3 Palavrinhas">
+<meta name="theme-color" content="#1c0a3c">
 <title>3 Palavrinhas - Aventuras Bíblicas</title>
 <style>
-  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #1c0a3c; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
-  #unity-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #1c0a3c; outline: none; }
+  /* a pagina fica presa: nunca rola nem estica (no iPhone, uma pagina deslocada tira os toques do lugar) */
+  html, body { margin: 0; padding: 0; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1c0a3c; overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #unity-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #1c0a3c; outline: none; touch-action: none; }
+  /* mede as bordas que o aparelho reserva (camera, cantos, barra de inicio); o script le estes valores */
+  #area { position: fixed; top: 0; left: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
   #carregando { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; }
   #barra { margin-top: 18px; width: 60vw; max-width: 420px; height: 18px; border-radius: 9px; background: rgba(255,255,255,.18); overflow: hidden; }
   #barra > div { width: 0%; height: 100%; background: #ffe500; border-radius: 9px; transition: width .2s; }
@@ -18,23 +28,24 @@
 </head>
 <body>
 <canvas id="unity-canvas" tabindex="-1"></canvas>
+<div id="area"></div>
 <div id="carregando"><div id="texto">Carregando...</div><div id="barra"><div></div></div></div>
 <div id="girar">Gire o aparelho para jogar deitado</div>
 <div id="aviso"></div>
 <div id="diag"></div>
-<script src="Build/Web.loader.js?v=26.11.25.1642"></script>
+<script src="Build/Web.loader.js?v=26.11.25.1721"></script>
 <script>
   var movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   var tela = document.querySelector('#unity-canvas');
   var par = new URLSearchParams(location.search);
   // o numero da publicacao vai no endereco dos arquivos: o navegador nunca mistura arquivos antigos com novos
-  var v = '?v=26.11.25.1642';
+  var v = '?v=26.11.25.1721';
 
   // erros aparecem numa faixa vermelha no topo (para poder mandar um print)
   function mostrarErro(t) {
     var a = document.querySelector('#aviso');
     a.style.display = 'block';
-    a.textContent = 'Erro (v26.11.25.1642): ' + t;
+    a.textContent = 'Erro (v26.11.25.1721): ' + t;
   }
   window.addEventListener('error', function (e) { mostrarErro(e.message || 'desconhecido'); });
   window.addEventListener('unhandledrejection', function (e) { mostrarErro(String((e.reason && e.reason.message) || e.reason)); });
@@ -56,9 +67,43 @@
   var escala = Math.min(window.devicePixelRatio || 1, movel ? 1.5 : 2);
   if (parseFloat(par.get('dpr')) > 0) escala = parseFloat(par.get('dpr'));
 
-  // No celular, tocar na tela nem sempre da "foco" a pagina; o jogo ja aceita toques sem foco, e isto reforca.
-  function focar() { try { window.focus(); tela.focus({ preventScroll: true }); } catch (e) { } }
+  // No computador, clicar na tela da "foco" ao jogo (teclado). No celular nao: o jogo ja aceita toques sem foco,
+  // e dar foco a um elemento pode fazer o navegador do celular deslocar a pagina.
+  function focar() { if (movel) return; try { window.focus(); tela.focus({ preventScroll: true }); } catch (e) { } }
   ['touchstart', 'pointerdown'].forEach(function (n) { window.addEventListener(n, focar, { passive: true, capture: true }); });
+
+  // --- a tela do jogo acompanha a area realmente visivel ---------------------------------------------------------
+  // No app da Tela de Inicio do iPhone os botoes so respondiam um pouco ABAIXO de onde apareciam (os de baixo ficavam
+  // fora de alcance): a pagina ficava deslocada em relacao ao que era desenhado. Por isso a pagina nunca rola, ocupa a
+  // tela inteira (sem a faixa do relogio, que o iPhone tira e poe ao girar) e a posicao e o tamanho da tela do jogo
+  // sao calculados aqui, pela area visivel menos as bordas reservadas, e conferidos o tempo todo.
+  try { history.scrollRestoration = 'manual'; } catch (e) { }
+  var sonda = document.querySelector('#area'), bordas = { c: 0, d: 0, b: 0, e: 0 }, areaJogo = { x: 0, y: 0, w: 0, h: 0 };
+  function px(v) { v = parseFloat(v); return v > 0 && v < 200 ? v : 0; }
+  function ajustarTela() {
+    // pagina sempre no topo
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+    if (document.documentElement.scrollTop || document.documentElement.scrollLeft) { document.documentElement.scrollTop = 0; document.documentElement.scrollLeft = 0; }
+    if (document.body.scrollTop || document.body.scrollLeft) { document.body.scrollTop = 0; document.body.scrollLeft = 0; }
+    var vv = window.visualViewport;
+    var w = vv ? vv.width : window.innerWidth, h = vv ? vv.height : window.innerHeight;
+    var x = vv ? vv.offsetLeft : 0, y = vv ? vv.offsetTop : 0;
+    if (!(w > 50 && h > 50)) { w = window.innerWidth; h = window.innerHeight; x = 0; y = 0; }
+    if (!(w > 50 && h > 50)) return;   // o navegador ainda nao sabe o tamanho: fica o tamanho do CSS (100%)
+    var cs = getComputedStyle(sonda);
+    bordas = { c: px(cs.paddingTop), d: px(cs.paddingRight), b: px(cs.paddingBottom), e: px(cs.paddingLeft) };
+    var a = { x: Math.round(x + bordas.e), y: Math.round(y + bordas.c), w: Math.round(w - bordas.e - bordas.d), h: Math.round(h - bordas.c - bordas.b) };
+    if (a.w < 50 || a.h < 50) a = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+    if (a.x === areaJogo.x && a.y === areaJogo.y && a.w === areaJogo.w && a.h === areaJogo.h) return;
+    areaJogo = a;
+    tela.style.left = a.x + 'px'; tela.style.top = a.y + 'px'; tela.style.width = a.w + 'px'; tela.style.height = a.h + 'px';
+  }
+  function ajustarVarias() { ajustarTela(); [100, 300, 600, 1000, 2000].forEach(function (t) { setTimeout(ajustarTela, t); }); }
+  ['resize', 'orientationchange', 'pageshow', 'scroll'].forEach(function (n) { window.addEventListener(n, ajustarVarias, { passive: true }); });
+  document.addEventListener('visibilitychange', ajustarVarias);
+  if (window.visualViewport) ['resize', 'scroll'].forEach(function (n) { window.visualViewport.addEventListener(n, ajustarTela, { passive: true }); });
+  setInterval(ajustarTela, 250);
+  ajustarTela();
 
   createUnityInstance(tela, {
     dataUrl: dados + v,
@@ -67,7 +112,7 @@
     streamingAssetsUrl: 'StreamingAssets',
     companyName: "DefaultCompany",
     productName: "3 Palavrinhas - Aventuras Bíblicas",
-    productVersion: "26.11.25.1642",
+    productVersion: "26.11.25.1721",
     devicePixelRatio: escala,
     showBanner: function (msg, tipo) { if (tipo === 'error') mostrarErro(msg); }
   }, function (p) {
@@ -81,24 +126,27 @@
 
   // painel de diagnostico da pagina (endereco com ?diag=1): o jogo mostra o dele no canto de cima
   if (par.get('diag') === '1') {
-    var info = document.querySelector('#diag'), toques = 0, soltos = 0, onde = '-', ponto = '-';
+    var info = document.querySelector('#diag'), toques = 0, soltos = 0, onde = '-', ponto = '-', desvio = '-';
     info.style.display = 'block';
     function atualizar() {
       var vv = window.visualViewport, r = tela.getBoundingClientRect(), d = document.documentElement;
       var app = (navigator.standalone === true) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
       var giro = screen.orientation ? screen.orientation.type : String(window.orientation);
-      info.textContent = 'pagina v26.11.25.1642 | modo ' + (app ? 'APP (tela de inicio)' : 'navegador') + ' | tex ' + formato +
+      info.textContent = 'pagina v26.11.25.1721 | modo ' + (app ? 'APP (tela de inicio)' : 'navegador') + ' | tex ' + formato +
         ' | dpr ' + (window.devicePixelRatio || 1) + ' > ' + escala +
         ' | janela ' + window.innerWidth + 'x' + window.innerHeight + ' | doc ' + d.clientWidth + 'x' + d.clientHeight +
         ' | visivel ' + (vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) + ' em ' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) + ' zoom ' + vv.scale.toFixed(2) : '-') +
         ' | aparelho ' + screen.width + 'x' + screen.height + ' ' + giro + ' | rolagem ' + Math.round(window.scrollX) + ',' + Math.round(window.scrollY) +
+        ' | bordas c' + bordas.c + ' d' + bordas.d + ' b' + bordas.b + ' e' + bordas.e +
         ' | canvas css ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' em ' + Math.round(r.left) + ',' + Math.round(r.top) + ' pixels ' + tela.width + 'x' + tela.height +
-        ' | toques ' + toques + ' (soltos ' + soltos + ') em ' + onde + ' ponto ' + ponto + ' | foco ' + (document.hasFocus() ? 'sim' : 'NAO') +
+        ' | toques ' + toques + ' (soltos ' + soltos + ') em ' + onde + ' ponto ' + ponto + ' tela-pagina ' + desvio + ' | foco ' + (document.hasFocus() ? 'sim' : 'NAO') +
         ' | ativo ' + (document.activeElement ? document.activeElement.tagName : '-');
     }
     function tocou(e) {
       var t = e.touches && e.touches[0] ? e.touches[0] : e;
-      toques++; onde = e.target.id || e.target.tagName; ponto = Math.round(t.clientX) + ',' + Math.round(t.clientY); atualizar();
+      toques++; onde = e.target.id || e.target.tagName; ponto = Math.round(t.clientX) + ',' + Math.round(t.clientY);
+      // diferenca entre a posicao do toque na tela do aparelho e na pagina: no modo app deitado deveria ser 0,0
+      desvio = Math.round(t.screenX - t.clientX) + ',' + Math.round(t.screenY - t.clientY); atualizar();
     }
     window.addEventListener('touchstart', tocou, { passive: true, capture: true });
     window.addEventListener('mousedown', tocou, { passive: true, capture: true });
