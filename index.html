@@ -22,19 +22,19 @@
 <div id="girar">Gire o aparelho para jogar deitado</div>
 <div id="aviso"></div>
 <div id="diag"></div>
-<script src="Build/Web.loader.js?v=26.11.25.1359"></script>
+<script src="Build/Web.loader.js?v=26.11.25.1642"></script>
 <script>
   var movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   var tela = document.querySelector('#unity-canvas');
   var par = new URLSearchParams(location.search);
   // o numero da publicacao vai no endereco dos arquivos: o navegador nunca mistura arquivos antigos com novos
-  var v = '?v=26.11.25.1359';
+  var v = '?v=26.11.25.1642';
 
   // erros aparecem numa faixa vermelha no topo (para poder mandar um print)
   function mostrarErro(t) {
     var a = document.querySelector('#aviso');
     a.style.display = 'block';
-    a.textContent = 'Erro (v26.11.25.1359): ' + t;
+    a.textContent = 'Erro (v26.11.25.1642): ' + t;
   }
   window.addEventListener('error', function (e) { mostrarErro(e.message || 'desconhecido'); });
   window.addEventListener('unhandledrejection', function (e) { mostrarErro(String((e.reason && e.reason.message) || e.reason)); });
@@ -67,7 +67,7 @@
     streamingAssetsUrl: 'StreamingAssets',
     companyName: "DefaultCompany",
     productName: "3 Palavrinhas - Aventuras Bíblicas",
-    productVersion: "26.11.25.1359",
+    productVersion: "26.11.25.1642",
     devicePixelRatio: escala,
     showBanner: function (msg, tipo) { if (tipo === 'error') mostrarErro(msg); }
   }, function (p) {
@@ -81,16 +81,28 @@
 
   // painel de diagnostico da pagina (endereco com ?diag=1): o jogo mostra o dele no canto de cima
   if (par.get('diag') === '1') {
-    var info = document.querySelector('#diag'), toques = 0, onde = '-';
+    var info = document.querySelector('#diag'), toques = 0, soltos = 0, onde = '-', ponto = '-';
     info.style.display = 'block';
     function atualizar() {
-      info.textContent = 'pagina v26.11.25.1359 | tex ' + formato + ' | dpr ' + (window.devicePixelRatio || 1) + ' > ' + escala +
-        ' | janela ' + window.innerWidth + 'x' + window.innerHeight + ' | tela ' + tela.width + 'x' + tela.height +
-        ' | toques ' + toques + ' em ' + onde + ' | foco ' + (document.hasFocus() ? 'sim' : 'NAO') +
+      var vv = window.visualViewport, r = tela.getBoundingClientRect(), d = document.documentElement;
+      var app = (navigator.standalone === true) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+      var giro = screen.orientation ? screen.orientation.type : String(window.orientation);
+      info.textContent = 'pagina v26.11.25.1642 | modo ' + (app ? 'APP (tela de inicio)' : 'navegador') + ' | tex ' + formato +
+        ' | dpr ' + (window.devicePixelRatio || 1) + ' > ' + escala +
+        ' | janela ' + window.innerWidth + 'x' + window.innerHeight + ' | doc ' + d.clientWidth + 'x' + d.clientHeight +
+        ' | visivel ' + (vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) + ' em ' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) + ' zoom ' + vv.scale.toFixed(2) : '-') +
+        ' | aparelho ' + screen.width + 'x' + screen.height + ' ' + giro + ' | rolagem ' + Math.round(window.scrollX) + ',' + Math.round(window.scrollY) +
+        ' | canvas css ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' em ' + Math.round(r.left) + ',' + Math.round(r.top) + ' pixels ' + tela.width + 'x' + tela.height +
+        ' | toques ' + toques + ' (soltos ' + soltos + ') em ' + onde + ' ponto ' + ponto + ' | foco ' + (document.hasFocus() ? 'sim' : 'NAO') +
         ' | ativo ' + (document.activeElement ? document.activeElement.tagName : '-');
     }
-    window.addEventListener('touchstart', function (e) { toques++; onde = e.target.id || e.target.tagName; atualizar(); }, { passive: true, capture: true });
-    window.addEventListener('mousedown', function (e) { toques++; onde = e.target.id || e.target.tagName; atualizar(); }, { passive: true, capture: true });
+    function tocou(e) {
+      var t = e.touches && e.touches[0] ? e.touches[0] : e;
+      toques++; onde = e.target.id || e.target.tagName; ponto = Math.round(t.clientX) + ',' + Math.round(t.clientY); atualizar();
+    }
+    window.addEventListener('touchstart', tocou, { passive: true, capture: true });
+    window.addEventListener('mousedown', tocou, { passive: true, capture: true });
+    window.addEventListener('touchend', function () { soltos++; }, { passive: true, capture: true });
     setInterval(atualizar, 500);
   }
 </script>
