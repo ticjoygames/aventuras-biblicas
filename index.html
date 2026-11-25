@@ -12,41 +12,87 @@
   #barra > div { width: 0%; height: 100%; background: #ffe500; border-radius: 9px; transition: width .2s; }
   #girar { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; text-align: center; background: #1c0a3c; color: #fff; font-size: 22px; font-weight: 700; padding: 24px; z-index: 10; }
   @media (orientation: portrait) and (max-width: 900px) { #girar { display: flex; } }
+  #aviso { position: fixed; top: 0; left: 0; right: 0; display: none; padding: 8px 12px; background: #b00020; color: #fff; font-size: 13px; z-index: 30; pointer-events: none; }
+  #diag { position: fixed; bottom: 0; right: 0; max-width: 70vw; display: none; padding: 4px 8px; background: rgba(0,0,0,.7); color: #7cfc00; font: 11px monospace; z-index: 20; pointer-events: none; text-align: right; }
 </style>
 </head>
 <body>
 <canvas id="unity-canvas" tabindex="-1"></canvas>
 <div id="carregando"><div id="texto">Carregando...</div><div id="barra"><div></div></div></div>
 <div id="girar">Gire o aparelho para jogar deitado</div>
-<script src="Build/Web.loader.js"></script>
+<div id="aviso"></div>
+<div id="diag"></div>
+<script src="Build/Web.loader.js?v=26.11.25.1359"></script>
 <script>
   var movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  var tela = document.querySelector('#unity-canvas');
+  var par = new URLSearchParams(location.search);
+  // o numero da publicacao vai no endereco dos arquivos: o navegador nunca mistura arquivos antigos com novos
+  var v = '?v=26.11.25.1359';
+
+  // erros aparecem numa faixa vermelha no topo (para poder mandar um print)
+  function mostrarErro(t) {
+    var a = document.querySelector('#aviso');
+    a.style.display = 'block';
+    a.textContent = 'Erro (v26.11.25.1359): ' + t;
+  }
+  window.addEventListener('error', function (e) { mostrarErro(e.message || 'desconhecido'); });
+  window.addEventListener('unhandledrejection', function (e) { mostrarErro(String((e.reason && e.reason.message) || e.reason)); });
+
   // Texturas no formato que a placa de video do aparelho entende: DXT em computador, ASTC em celular.
-  var dados = 'Build/Web.dxt.data.unityweb';
+  // (para comparar, o endereco aceita ?tex=dxt ou ?tex=astc)
+  var formato = 'dxt';
   try {
     var teste = document.createElement('canvas');
     var gl = teste.getContext('webgl2') || teste.getContext('webgl');
     var dxt = gl && (gl.getExtension('WEBGL_compressed_texture_s3tc') || gl.getExtension('WEBKIT_WEBGL_compressed_texture_s3tc'));
     var astc = gl && gl.getExtension('WEBGL_compressed_texture_astc');
-    if (astc && !dxt) dados = 'Build/Web.astc.data.unityweb';
+    if (astc && !dxt) formato = 'astc';
   } catch (e) { }
-  createUnityInstance(document.querySelector('#unity-canvas'), {
-    dataUrl: dados,
-    frameworkUrl: 'Build/Web.framework.js.unityweb',
-    codeUrl: 'Build/Web.wasm.unityweb',
+  if (par.get('tex') === 'dxt' || par.get('tex') === 'astc') formato = par.get('tex');
+  var dados = 'Build/' + (formato === 'astc' ? 'Web.astc.data.unityweb' : 'Web.dxt.data.unityweb');
+
+  // em celular, limita a resolucao para o jogo rodar liso (?dpr=1 muda o limite, para comparar)
+  var escala = Math.min(window.devicePixelRatio || 1, movel ? 1.5 : 2);
+  if (parseFloat(par.get('dpr')) > 0) escala = parseFloat(par.get('dpr'));
+
+  // No celular, tocar na tela nem sempre da "foco" a pagina; o jogo ja aceita toques sem foco, e isto reforca.
+  function focar() { try { window.focus(); tela.focus({ preventScroll: true }); } catch (e) { } }
+  ['touchstart', 'pointerdown'].forEach(function (n) { window.addEventListener(n, focar, { passive: true, capture: true }); });
+
+  createUnityInstance(tela, {
+    dataUrl: dados + v,
+    frameworkUrl: 'Build/Web.framework.js.unityweb' + v,
+    codeUrl: 'Build/Web.wasm.unityweb' + v,
     streamingAssetsUrl: 'StreamingAssets',
     companyName: "DefaultCompany",
     productName: "3 Palavrinhas - Aventuras Bíblicas",
-    productVersion: "0.1.0",
-    // em celular, limita a resolução para o jogo rodar liso
-    devicePixelRatio: Math.min(window.devicePixelRatio || 1, movel ? 1.5 : 2)
+    productVersion: "26.11.25.1359",
+    devicePixelRatio: escala,
+    showBanner: function (msg, tipo) { if (tipo === 'error') mostrarErro(msg); }
   }, function (p) {
     document.querySelector('#barra > div').style.width = Math.round(p * 100) + '%';
   }).then(function () {
     document.querySelector('#carregando').style.display = 'none';
+    focar();
   }).catch(function (m) {
     document.querySelector('#texto').textContent = 'Nao foi possivel carregar o jogo: ' + m;
   });
+
+  // painel de diagnostico da pagina (endereco com ?diag=1): o jogo mostra o dele no canto de cima
+  if (par.get('diag') === '1') {
+    var info = document.querySelector('#diag'), toques = 0, onde = '-';
+    info.style.display = 'block';
+    function atualizar() {
+      info.textContent = 'pagina v26.11.25.1359 | tex ' + formato + ' | dpr ' + (window.devicePixelRatio || 1) + ' > ' + escala +
+        ' | janela ' + window.innerWidth + 'x' + window.innerHeight + ' | tela ' + tela.width + 'x' + tela.height +
+        ' | toques ' + toques + ' em ' + onde + ' | foco ' + (document.hasFocus() ? 'sim' : 'NAO') +
+        ' | ativo ' + (document.activeElement ? document.activeElement.tagName : '-');
+    }
+    window.addEventListener('touchstart', function (e) { toques++; onde = e.target.id || e.target.tagName; atualizar(); }, { passive: true, capture: true });
+    window.addEventListener('mousedown', function (e) { toques++; onde = e.target.id || e.target.tagName; atualizar(); }, { passive: true, capture: true });
+    setInterval(atualizar, 500);
+  }
 </script>
 </body>
 </html>
