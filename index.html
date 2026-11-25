@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+<title>3 Palavrinhas - Aventuras Bíblicas</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #1c0a3c; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #unity-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #1c0a3c; outline: none; }
+  #carregando { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; }
+  #barra { margin-top: 18px; width: 60vw; max-width: 420px; height: 18px; border-radius: 9px; background: rgba(255,255,255,.18); overflow: hidden; }
+  #barra > div { width: 0%; height: 100%; background: #ffe500; border-radius: 9px; transition: width .2s; }
+  #girar { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; text-align: center; background: #1c0a3c; color: #fff; font-size: 22px; font-weight: 700; padding: 24px; z-index: 10; }
+  @media (orientation: portrait) and (max-width: 900px) { #girar { display: flex; } }
+</style>
+</head>
+<body>
+<canvas id="unity-canvas" tabindex="-1"></canvas>
+<div id="carregando"><div id="texto">Carregando...</div><div id="barra"><div></div></div></div>
+<div id="girar">Gire o aparelho para jogar deitado</div>
+<script src="Build/Web.loader.js"></script>
+<script>
+  var movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  createUnityInstance(document.querySelector('#unity-canvas'), {
+    dataUrl: 'Build/Web.data.unityweb',
+    frameworkUrl: 'Build/Web.framework.js.unityweb',
+    codeUrl: 'Build/Web.wasm.unityweb',
+    streamingAssetsUrl: 'StreamingAssets',
+    companyName: "DefaultCompany",
+    productName: "3 Palavrinhas - Aventuras Bíblicas",
+    productVersion: "0.1.0",
+    // em celular, limita a resolução para o jogo rodar liso
+    devicePixelRatio: Math.min(window.devicePixelRatio || 1, movel ? 1.5 : 2)
+  }, function (p) {
+    document.querySelector('#barra > div').style.width = Math.round(p * 100) + '%';
+  }).then(function () {
+    document.querySelector('#carregando').style.display = 'none';
+  }).catch(function (m) {
+    document.querySelector('#texto').textContent = 'Nao foi possivel carregar o jogo: ' + m;
+  });
+</script>
+</body>
+</html>
