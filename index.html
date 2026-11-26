@@ -33,19 +33,19 @@
 <div id="girar">Gire o aparelho para jogar deitado</div>
 <div id="aviso"></div>
 <div id="diag"></div>
-<script src="Build/Web.loader.js?v=26.11.26.0940"></script>
+<script src="Build/Web.loader.js?v=26.11.26.1237"></script>
 <script>
   var movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   var tela = document.querySelector('#unity-canvas');
   var par = new URLSearchParams(location.search);
   // o numero da publicacao vai no endereco dos arquivos: o navegador nunca mistura arquivos antigos com novos
-  var v = '?v=26.11.26.0940';
+  var v = '?v=26.11.26.1237';
 
   // erros aparecem numa faixa vermelha no topo (para poder mandar um print)
   function mostrarErro(t) {
     var a = document.querySelector('#aviso');
     a.style.display = 'block';
-    a.textContent = 'Erro (v26.11.26.0940): ' + t;
+    a.textContent = 'Erro (v26.11.26.1237): ' + t;
   }
   window.addEventListener('error', function (e) { mostrarErro(e.message || 'desconhecido'); });
   window.addEventListener('unhandledrejection', function (e) { mostrarErro(String((e.reason && e.reason.message) || e.reason)); });
@@ -112,7 +112,7 @@
     streamingAssetsUrl: 'StreamingAssets',
     companyName: "DefaultCompany",
     productName: "3 Palavrinhas - Aventuras Bíblicas",
-    productVersion: "26.11.26.0940",
+    productVersion: "26.11.26.1237",
     devicePixelRatio: escala,
     showBanner: function (msg, tipo) { if (tipo === 'error') mostrarErro(msg); }
   }, function (p) {
@@ -132,7 +132,7 @@
       var vv = window.visualViewport, r = tela.getBoundingClientRect(), d = document.documentElement;
       var app = (navigator.standalone === true) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
       var giro = screen.orientation ? screen.orientation.type : String(window.orientation);
-      info.textContent = 'pagina v26.11.26.0940 | modo ' + (app ? 'APP (tela de inicio)' : 'navegador') + ' | tex ' + formato +
+      info.textContent = 'pagina v26.11.26.1237 | modo ' + (app ? 'APP (tela de inicio)' : 'navegador') + ' | tex ' + formato +
         ' | dpr ' + (window.devicePixelRatio || 1) + ' > ' + escala +
         ' | janela ' + window.innerWidth + 'x' + window.innerHeight + ' | doc ' + d.clientWidth + 'x' + d.clientHeight +
         ' | visivel ' + (vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) + ' em ' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) + ' zoom ' + vv.scale.toFixed(2) : '-') +
